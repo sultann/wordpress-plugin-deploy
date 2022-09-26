@@ -2,7 +2,7 @@
 Github Action to deploy a WordPress plugin to the WordPress.org plugin repository.
 
 ## Requirements
-There are secrets required for this action to work. You can set them in your repository's settings under `Settings > Secrets`.
+There are two secrets required for this action to work. You can set those in your repository's settings under `Settings > Secrets`.
 - `SVN_USERNAME` - Your WordPress.org username.
 - `SVN_PASSWORD` - Your WordPress.org password.
 
