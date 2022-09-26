@@ -82,9 +82,9 @@ fi
 #########################################
 # If version is not empty, and if the event is a tag push or publish, use the tag name as version.
 if [[ -z "$VERSION" ]]; then
-	VERSION="${GITHUB_REF#refs/tags/}"
-	VERSION="${VERSION#v}"
-  echo "ℹ︎ Version not set, checking if github ref could be used as version ($VERSION)"
+	TAG="${GITHUB_REF#refs/tags/}"
+	VERSION=$(echo "$TAG" | sed -e 's/[^0-9.]*//g')
+	echo "ℹ︎ Version not set, checking if github ref could be used as version ($VERSION)"
 fi
 
 # If the version is not set, get the version from the main plugin file.
@@ -92,6 +92,8 @@ fi
 if [[ -z "$VERSION" ]]; then
   if [[ -f "$WORKING_DIR/$SVN_SLUG.php" ]]; then
     VERSION=$(grep "^Version:" "$WORKING_DIR/$SVN_SLUG.php" | awk -F' ' '{print $NF}')
+    #sed replace everything exept numbers and dots
+    VERSION=$(echo "$VERSION" | sed -e 's/[^0-9.]*//g')
     echo "ℹ︎ Version not set, checking if we can find from plugin file ($VERSION)"
   fi
 fi
