@@ -80,6 +80,9 @@ fi
 #########################################
 # VERSIONING #
 #########################################
+# Clean up the version number.
+VERSION=$(echo "$VERSION" | sed -e 's/[^0-9.]*//g')
+
 # If version is not empty, and if the event is a tag push or publish, use the tag name as version.
 if [[ -z "$VERSION" ]]; then
 	TAG="${GITHUB_REF#refs/tags/}"
@@ -99,9 +102,9 @@ fi
 if [[ -z "$VERSION" ]]; then
   if [[ -f "$WORKING_DIR/$SVN_SLUG.php" ]]; then
     echo "ℹ︎ Checking if we can find from plugin file ($SVN_SLUG.php)"
-    WP_VERSION=$(grep "^Version:" "$WORKING_DIR/$SVN_SLUG.php" | awk -F' ' '{print $NF}')
-    #sed replace everything exept numbers and dots
-    WP_VERSION=$(echo "$WP_VERSION" | sed -e 's/[^0-9.]*//g')
+    # Find the version in the plugin file.
+
+    WP_VERSION=$(awk '/[^[:graph:]]Version/{print $NF}' "$WORKING_DIR/$SVN_SLUG.php" | sed -e 's/[^0-9.]*//g')
     # If the version is a valid version number, use it as version.
     if [[ "$WP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
       VERSION="$WP_VERSION"
@@ -109,14 +112,6 @@ if [[ -z "$VERSION" ]]; then
     else
       echo "ℹ︎ Ops, no valid version number found in the plugin file"
     fi
-  fi
-fi
-
-# If version is set, replace everything except . and numbers.
-if [[ -n "$VERSION" ]]; then
-  VERSION=$(echo "$VERSION" | sed -e 's/[^0-9.]*//g')
-  if [[ -n "$VERSION" ]]; then
-    echo "ℹ︎ Version set to $VERSION"
   fi
 fi
 
