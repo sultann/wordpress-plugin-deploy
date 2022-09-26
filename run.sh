@@ -119,7 +119,7 @@ fi
 # If the version is exist and a valid version number, then crate the svn tag.
 if [[ -n "$VERSION" ]] && [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
   # Versioning
-  echo "::set-output name=version::$SVN_DIR"
+  echo "::set-output name=version::$VERSION"
   echo "➤ Versioning..."
   echo "ℹ︎ SVN tag is $VERSION"
   echo "➤ Creating SVN tag..."
