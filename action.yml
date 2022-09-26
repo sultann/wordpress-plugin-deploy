@@ -1,4 +1,4 @@
-name: 'SVN Plugin Deploy'
+name: 'Action Plugin Deploy'
 author: 'Sultan Nasir Uddin'
 description: 'Deploy WordPress Plugin to SVN'
 branding:
