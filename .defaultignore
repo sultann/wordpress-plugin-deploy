@@ -1,0 +1,67 @@
+# Default dist ignore list
+
+# Git related files
+.git
+.gitignore
+.gitattributes
+
+# Composer related files
+composer.lock
+composer.json
+
+# NPM related files
+npm-debug.log
+node_modules
+postcss.config.js
+babel.config.js
+package.json
+package-lock.json
+gruntfile.js
+Gruntfile.js
+webpack.config.js
+yarn.lock
+
+# Bower related files
+bower.json
+bower_components
+
+# Config files
+.*
+
+# Test related files
+phpunit.xml
+phpunit.xml.dist
+tests
+
+# PHPCS related files
+phpcs.xml
+phpcs.xml.dist
+
+
+# IDE related files
+.idea
+*.iml
+*.sublime-project
+*.sublime-workspace
+*.project
+*.tmproj
+*.vscode
+
+# Misc files
+*.log
+*.sh
+bin
+
+# OS related files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# Action related files
+.wordpress-org
+

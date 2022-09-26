@@ -1,0 +1,54 @@
+name: 'SVN Plugin Deploy'
+author: 'Sultan Nasir Uddin'
+description: 'Deploy WordPress Plugin to SVN'
+branding:
+  icon: 'upload-cloud'
+  color: 'blue'
+
+inputs:
+  svn_slug:
+    description: 'SVN slug'
+    required: true
+    default: ${{ github.event.repository.name }}
+  svn_username:
+    description: 'SVN username'
+    required: true
+    default: ''
+  svn_password:
+    description: 'SVN password'
+    required: true
+    default: ''
+  working_dir:
+    description: 'Working directory'
+    required: false
+    default: ${{ github.workspace }}
+  version:
+    description: 'Version'
+    required: false
+    default: ''
+  dry_run:
+    description: 'Dry run'
+    required: false
+    default: 'false'
+
+outputs:
+  svn_path:
+    description: 'SVN path'
+    value: ${{ steps.deploy.outputs.svn_path }}
+  version:
+    description: 'Release version'
+    value: ${{ steps.deploy.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: deploy
+      shell: bash
+      run: ${{ github.action_path }}/run.sh
+      env:
+        SVN_SLUG: ${{ inputs.svn_slug }}
+        SVN_USERNAME: ${{ inputs.svn_username }}
+        SVN_PASSWORD: ${{ inputs.svn_password }}
+        WORKING_DIR: ${{ inputs.working_dir }}
+        VERSION: ${{ inputs.version }}
+        DRY_RUN: ${{ inputs.dry_run }}
