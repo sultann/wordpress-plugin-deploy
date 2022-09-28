@@ -53,6 +53,8 @@ else
   rsync -rc --exclude-from="$GITHUB_ACTION_PATH/.defaultignore" "$WORKING_DIR/" "$SVN_DIR/trunk/" --delete --delete-excluded
 fi
 echo "✓ Files copied!"
+# Remove empty directories from trunk
+find "$SVN_DIR/trunk/" -type d -empty -delete
 
 
 # Copy assets
