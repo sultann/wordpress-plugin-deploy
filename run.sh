@@ -108,14 +108,15 @@ if [[ -n "$VERSION" ]] && [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
   echo "ℹ︎ SVN tag is $VERSION"
 
   if svn ls "https://plugins.svn.wordpress.org/$SVN_SLUG/tags/$VERSION" >> /dev/null 2>&1; then
-    echo "ℹ︎ Tag already exists. Pulling files ..."
-    svn update --set-depth infinity "$SVN_DIR/tags/$VERSION"
+      echo "ℹ︎ Tag already exists. Pulling files ..."
+      svn update --set-depth infinity "$SVN_DIR/tags/$VERSION"
+      rsync -rc "$SVN_DIR/trunk/" "$SVN_DIR/tags/$VERSION/" --delete --delete-excluded
+      echo "✓ Tag files synced !"
     else
-    echo "ℹ︎ Tag does not exist. Creating tag ..."
+      echo "ℹ︎ Tag does not exist. Creating tag ..."
+      svn copy "$SVN_DIR/trunk" "$SVN_DIR/tags/$VERSION" >> /dev/null
+      echo "✓ SVN tag created!"
   fi
-
-  svn copy "$SVN_DIR/trunk" "$SVN_DIR/tags/$VERSION" >> /dev/null
-  echo "✓ SVN tag created!"
 else
   echo "ℹ︎ Could not find a valid version number, skipping versioning..."
 fi
