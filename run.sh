@@ -103,7 +103,14 @@ if [[ -n "$VERSION" ]] && [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
   echo "::set-output name=version::$VERSION"
   echo "➤ Versioning..."
   echo "ℹ︎ SVN tag is $VERSION"
-  echo "➤ Creating SVN tag..."
+
+  if svn ls "https://plugins.svn.wordpress.org/$SVN_SLUG/tags/$VERSION" >> /dev/null 2>&1; then
+    echo "ℹ︎ Tag already exists. Pulling files ..."
+    svn update --set-depth infinity "$SVN_DIR/tags/$VERSION"
+    else
+    echo "ℹ︎ Tag does not exist. Creating tag ..."
+  fi
+
   svn copy "$SVN_DIR/trunk" "$SVN_DIR/tags/$VERSION" >> /dev/null
   echo "✓ SVN tag created!"
 else
