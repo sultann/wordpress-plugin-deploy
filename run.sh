@@ -37,7 +37,7 @@ if [ ! -d "$SVN_DIR" ]; then
   echo "✓ SVN directory created!"
 fi
 
-echo "::set-output name=svn_path::$SVN_DIR"
+echo "::set-output name=svn_path::${SVN_DIR}"
 
 # Checkout the SVN repo
 echo "➤ Checking out SVN repo..."
