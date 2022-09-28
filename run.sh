@@ -2,6 +2,9 @@
 
 set -eo
 
+# output command to log
+set -x
+
 #########################################
 # CHECK IF EVERYTHING IS SET CORRECTLY #
 #########################################
