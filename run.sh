@@ -119,6 +119,7 @@ svn add . --force > /dev/null
 # SVN delete all deleted files
 # Also suppress stdout here
 svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ > /dev/null
+svn update # Fix directory is out of date error
 svn status
 cd - || exit
 echo "✓ Files updated!"
@@ -132,7 +133,7 @@ if [[ -n "$(svn status "$SVN_DIR")" ]]; then
     exit 0
     else
     # If DRY_RUN is not set, then commit the changes.
-    svn commit "$SVN_DIR" -m "Deploy to WordPress.org" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --no-auth-cache --non-interactive >> /dev/null || exit 1
+    svn commit "$SVN_DIR" -m "Update to version $VERSION from GitHub" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --no-auth-cache --non-interactive >> /dev/null || exit 1
     echo "✓ Changes committed!"
   fi
 else
