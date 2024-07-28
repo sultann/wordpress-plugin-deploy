@@ -1,40 +1,48 @@
-name: 'Action Plugin Deploy'
+name: 'WordPress Plugin Deploy Action'
 author: 'Sultan Nasir Uddin'
-description: 'Deploy WordPress Plugin to SVN'
+description: 'Release WordPress plugin to wordpress.org SVN repository'
 branding:
   icon: 'upload-cloud'
   color: 'blue'
 
 inputs:
-  svn_slug:
+  slug:
     description: 'SVN slug'
     required: true
     default: ${{ github.event.repository.name }}
-  svn_username:
+  username:
     description: 'SVN username'
     required: true
     default: ''
-  svn_password:
+  password:
     description: 'SVN password'
     required: true
     default: ''
-  working_dir:
-    description: 'Working directory'
-    required: false
-    default: ${{ github.workspace }}
   version:
     description: 'Version'
+    required: false
+    default: ''
+  generate_zip:
+    description: 'Generate package zip file?'
     required: false
     default: ''
   dry_run:
     description: 'Dry run'
     required: false
     default: 'false'
+  slack_webhook:
+    description: 'Slack webhook URL'
+    required: false
+    default: ''
+  slack_message:
+    description: 'Slack message'
+    required: false
+    default: ''
 
 outputs:
-  svn_path:
-    description: 'SVN path'
-    value: ${{ steps.deploy.outputs.svn_path }}
+  zip_path:
+    description: 'Path to zip file'
+    value: ${{ steps.deploy.outputs.zip_path }}
   version:
     description: 'Release version'
     value: ${{ steps.deploy.outputs.version }}
@@ -44,11 +52,33 @@ runs:
   steps:
     - id: deploy
       shell: bash
-      run: ${{ github.action_path }}/run.sh
+      run: ${{ github.action_path }}/deploy.sh
       env:
-        SVN_SLUG: ${{ inputs.svn_slug }}
-        SVN_USERNAME: ${{ inputs.svn_username }}
-        SVN_PASSWORD: ${{ inputs.svn_password }}
-        WORKING_DIR: ${{ inputs.working_dir }}
+        USERNAME: ${{ inputs.username }}
+        PASSWORD: ${{ inputs.password }}
+        SLUG: ${{ inputs.slug }}
         VERSION: ${{ inputs.version }}
+        GENERATE_ZIP: ${{ inputs.generate_zip }}
         DRY_RUN: ${{ inputs.dry_run }}
+
+    - name: Set Default Slack Message
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.slack_message }}" ]; then
+          echo "SLACK_MESSAGE=Hello team! Version v${{ steps.deploy.outputs.version }} of ${{ inputs.slug }} has been successfully released! Check it out at wordpress.org/plugins/${{ inputs.slug }}. Please take a moment to test the new version and share your feedback or report any issues!" >> $GITHUB_ENV
+        else
+          echo "SLACK_MESSAGE=${{ inputs.slack_message }}" >> $GITHUB_ENV
+        fi
+
+      # Post message to Slack channel
+    - name: Slack Notification
+      uses: rtCamp/action-slack-notify@master
+      if: ${{ success() && inputs.slack_webhook != '' }}
+      env:
+        SLACK_COLOR: ${{ job.status }}
+        SLACK_TITLE: ":loudspeaker: ${{ inputs.slug }} v${{ steps.deploy.outputs.version }} has been released!"
+        SLACK_USERNAME: 'GitHub Actions'
+        SLACK_WEBHOOK: ${{ inputs.slack_webhook }}
+        SLACK_FOOTER: "🎉 Well done, team! Let’s keep the momentum going!"
+        SLACK_MESSAGE: ${{ env.SLACK_MESSAGE }}
+        MSG_MINIMAL: true

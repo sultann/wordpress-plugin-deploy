@@ -1,24 +1,93 @@
 # WordPress.org Plugin Deploy Action
+
 Github Action to deploy a WordPress plugin to the WordPress.org plugin repository.
 
 ## Requirements
-There are two secrets required for this action to work. You can set those in your repository's settings under `Settings > Secrets`.
+
+There are two secrets required for this action to work. You can set those in your repository's settings
+under `Settings > Secrets and Variables > Actions`.
+
 - `SVN_USERNAME` - Your WordPress.org username.
 - `SVN_PASSWORD` - Your WordPress.org password.
 
-## Usage
-```yaml
-- name: Deploy to WordPress.org
-  uses: sultann/action-plugin-deploy@master
-  with:
-    svn_username: ${{ secrets.SVN_USERNAME }}
-    svn_password: ${{ secrets.SVN_PASSWORD }}
-    svn_slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
+## Inputs
+
+| Input           | Required | Description                                                                                                                                                                                           |
+|-----------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `username`      | Yes      | Your WordPress.org username.                                                                                                                                                                          |
+| `password`      | Yes      | Your WordPress.org password.                                                                                                                                                                          |
+| `slug`          | No       | The slug of the plugin on WordPress.org. This is optional if your GitHub repository name matches the WordPress.org slug.                                                                              |
+| `version`       | No       | The release version of your plugin. This is optional by default the action will use the tag name as the version.                                                                                      |
+| `generate_zip`  | No       | Whether to generate a zip file of the plugin. This is optional and defaults to `false`. If set to `true`, the action will generate a zip file.                                                        |
+| `dry_run`       | No       | Whether to run the action in dry run mode. This is optional and defaults to `false`. If set to `true`, the action will not deploy to WordPress.org, instead outputs the files that would be deployed. |
+| `slack_webhook` | No       | Slack webhook URL to send notification when deployment is successful.                                                                                                                                 |
+
+### Outputs
+
+| Output     | Description                                                             |
+|------------|-------------------------------------------------------------------------|
+| `version`  | Version number of the release, that is being used for deployment.       |
+| `zip_path` | The path to the ZIP file generated. If `generate_zip` is set to `true`. |
+
+
+## Excluding files from release
+
+If there are files or directories to be excluded from release, such as tests or editor config files, they can be
+specified in either a `.distignore` file.
+
+Sample `.distignore` file:
+
+```
+/.git
+/.github
+/node_modules
+
+.distignore
+.gitignore
 ```
 
 
+## Usage
+
+```yaml
+- name: Deploy to WordPress.org
+  id: deploy
+  uses: sultann/wordpress-plugin-deploy@master
+  with:
+    # SVN username that has commit access to the following plugin.
+    # Required.
+    username: ${{ secrets.SVN_USERNAME }}
+
+    # SVN password of the user.
+    # Required.
+    password: ${{ secrets.SVN_PASSWORD }}
+
+    # Slug of the plugin on WordPress.org. If the GitHub repository name matches the WordPress.org slug, this is optional.
+    # Optional.
+    svn_slug: 'my-plugin-slug'
+
+    # Version of the release. Defaults to the release tag if found otherwise version from the package.json file.
+    # Optional.
+    version: '1.0.0'
+
+    # Whether to generate a zip file of the plugin. Defaults to false. If this is set to true, you can use ${{ steps.deploy.outputs.zip_path }} to get the path to the generated zip file.
+    # Optional.
+    generate_zip: true
+
+    # Whether to run the action in dry run mode. Defaults to false. If this is set to true, the action will not deploy to WordPress.org, instead outputs the files that would be deployed.
+    # Optional.
+    dry_run: true
+
+    # Slack webhook URL to send notification when deployment is successful.
+    # Optional.
+    slack_webhook: ${{ secrets.SLACK_WEBHOOK }}
+
+```
+
 ## Example
+
 Create a new file in your repository at `.github/workflows/deploy.yml` with the following contents:
+
 ```yaml
 name: Deploy to WordPress.org
 on:
@@ -26,58 +95,22 @@ on:
     tags:
       - "*"
 jobs:
-    build:
-        name: Build release and deploy
-        runs-on: ubuntu-latest
-        steps:
+  build:
+    name: Build release and deploy
+    runs-on: ubuntu-latest
+    steps:
         - name: Checkout code
-            uses: actions/checkout@v2
+          uses: actions/checkout@v2
         - name: Build & Deploy
-            uses: sultann/action-plugin-deploy@master
-            with:
-            svn_username: ${{ secrets.SVN_USERNAME }}
-            svn_password: ${{ secrets.SVN_PASSWORD }}
-            svn_slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
+          uses: sultann/wordpress-plugin-deploy@master
+          with:
+          svn_username: ${{ secrets.SVN_USERNAME }}
+          svn_password: ${{ secrets.SVN_PASSWORD }}
+          svn_slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
 ```
-This will deploy your plugin to WordPress.org when you push a new tag to your repository.
-
-## Excluding files from deployment
-If you want to exclude certain files from being deployed to WordPress.org, you can add a `.distignore` file to your repository. This file should contain a list of files and directories to exclude, one per line. For example:
-```
-.git
-.github
-.gitignore
-.travis.yml
-```
-By default, the action will exclude the [following](https://github.com/sultann/action-plugin-deploy/.defaultignore) files and directories.
-
-## Inputs
-- `svn_username` - Your WordPress.org username.
-- `svn_password` - Your WordPress.org password.
-- `svn_slug` - The slug of your plugin on WordPress.org. This is optional if your GitHub repository name matches the WordPress.org slug.
-- `working_dir` - The directory where your plugin is located. This is optional if your plugin is located in the root of your repository.
-- `version` - The release version of your plugin. This is optional by default the action will use the tag name as the version if it's a valid version number. Otherwise, it will use the version from plugin main file.
-- `dry_run` - Whether to run the action in dry run mode. This is optional and defaults to `false`. If set to `true`, the action will not deploy to WordPress.org, instead outputs the files that would be deployed.
-
-## Output
-- `svn_path` - The path to the folder where the svn checkout is located.
-- `version` - Version number of the release, that is being used for deployment.
-
-
-## Debugging
-If you want to see what files will be changed in the WordPress.org repository, you can run the action in dry run mode. To do this, add the following to your workflow file:
-```yaml
-- name: Deploy to WordPress.org
-  uses: sultann/action-plugin-deploy@master
-  with:
-    svn_username: ${{ secrets.SVN_USERNAME }}
-    svn_password: ${{ secrets.SVN_PASSWORD }}
-    svn_slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
-    dry_run: true
-```
-This will output the files that would be changed in the WordPress.org repository. Once you are satisfied with the output, you can remove the `dry_run` input.
 
 If you wish to check out locally what files will be changed. Then follow the steps below:
+
 ```bash
 cd wp-content
 svn checkout --depth immediates https://plugins.svn.wordpress.org/my-plugin-slug/ my-plugin-slug-svn
@@ -86,4 +119,5 @@ rsync -av --exclude-from=my-plugin-slug/.distignore --delete --delete-excluded m
 ```
 
 ## License
+
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
