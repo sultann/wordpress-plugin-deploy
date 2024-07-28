@@ -2,8 +2,8 @@
 
 set -eo
 
-# output command to log
-set -x
+# Uncomment this when debugging the script.
+#set -x
 
 #########################################
 # SETUP DEFAULTS #
