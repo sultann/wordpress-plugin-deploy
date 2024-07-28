@@ -4,11 +4,11 @@ Github Action to deploy a WordPress plugin to the WordPress.org plugin repositor
 
 ## Requirements
 
-There are two secrets required for this action to work. You can set those in your repository's settings
-under `Settings > Secrets and Variables > Actions`.
+Add the following secrets to your repository's settings under `Settings > Secrets and Variables > Actions`.
 
 - `SVN_USERNAME` - Your WordPress.org username.
 - `SVN_PASSWORD` - Your WordPress.org password.
+- `SLACK_WEBHOOK`- (Optional) Slack webhook URL to send notification when deployment is successful.
 
 ## Inputs
 
@@ -45,6 +45,9 @@ Sample `.distignore` file:
 .distignore
 .gitignore
 ```
+
+## Assets Directory
+Create a directory named `.wordpress-org` in the root of your repository. This directory will contain all the assets e.g. banners, icons, screenshots, etc. that you want to deploy to WordPress.org. The action will automatically copy all the files from this directory to the assets directory of the WordPress.org plugin repository.
 
 
 ## Usage
