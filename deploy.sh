@@ -14,8 +14,12 @@ SVN_URL="https://plugins.svn.wordpress.org/${SLUG}/"
 SVN_DIR="${HOME}/svn-${SLUG}"
 
 # If the version is not set, check if package.json exists and get the version from there otherwise exit.
-if [[ -z "$VERSION" && -f "$GITHUB_WORKSPACE/package.json" ]]; then
-  VERSION=$(node -p "require('./package.json').version")
+if [[ -z "$VERSION" || ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    if [ -f ./package.json ]; then
+        VERSION=$(node -p "require('./package.json').version")
+    else
+        VERSION=""
+    fi
 fi
 
 #########################################
