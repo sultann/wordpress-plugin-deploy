@@ -67,7 +67,7 @@ Create a directory named `.wordpress-org` in the root of your repository. This d
 
     # Slug of the plugin on WordPress.org. If the GitHub repository name matches the WordPress.org slug, this is optional.
     # Optional.
-    svn_slug: 'my-plugin-slug'
+    slug: 'my-plugin-slug'
 
     # Version of the release. Defaults to the release tag if found otherwise version from the package.json file.
     # Optional.
@@ -107,10 +107,12 @@ jobs:
         - name: Build & Deploy
           uses: sultann/wordpress-plugin-deploy@master
           with:
-          svn_username: ${{ secrets.SVN_USERNAME }}
-          svn_password: ${{ secrets.SVN_PASSWORD }}
-          svn_slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
+          username: ${{ secrets.SVN_USERNAME }}
+          password: ${{ secrets.SVN_PASSWORD }}
+          slug: 'my-plugin-slug' # Remove this if GitHub repo name matches SVN slug
 ```
+
+When a new tag is pushed to the repository, the action will build the release and deploy it to WordPress.org plugin repository.
 
 If you wish to check out locally what files will be changed. Then follow the steps below:
 
