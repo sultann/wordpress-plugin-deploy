@@ -50,6 +50,10 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Install SVN
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install subversion -y
+
     - id: deploy
       shell: bash
       run: ${{ github.action_path }}/deploy.sh
