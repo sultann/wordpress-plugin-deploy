@@ -52,7 +52,7 @@ runs:
   steps:
     - name: Install SVN
       shell: bash
-      run: sudo apt-get update && sudo apt-get install subversion -y
+      run: sudo apt-get install subversion -y
 
     - id: deploy
       shell: bash
