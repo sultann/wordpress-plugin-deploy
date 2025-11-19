@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eo
+set -euo pipefail
 
 # Uncomment this when debugging the script.
 #set -x
