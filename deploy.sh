@@ -1,145 +1,208 @@
 #!/bin/bash
 
-set -eo
+# Exit on error, undefined variables, and pipe failures
+set -euo pipefail
 
-# Uncomment this when debugging the script.
-#set -x
+# =============================================================================
+# WordPress Plugin Deploy Action
+# =============================================================================
+# Deploys WordPress plugin to wordpress.org SVN repository
+# =============================================================================
 
-#########################################
-# SETUP DEFAULTS #
-#########################################
-VERSION="${VERSION:-${GITHUB_REF#refs/tags/}}"; VERSION="${VERSION#v}"
+# -----------------------------------------------------------------------------
+# Logging Functions
+# -----------------------------------------------------------------------------
+log_info() {
+    echo "[INFO] $1"
+}
+
+log_error() {
+    echo "::error::$1"
+}
+
+log_warning() {
+    echo "::warning::$1"
+}
+
+# -----------------------------------------------------------------------------
+# Setup Defaults
+# -----------------------------------------------------------------------------
+VERSION="${VERSION:-${GITHUB_REF#refs/tags/}}"
+VERSION="${VERSION#v}"
 SLUG="${SLUG:-${GITHUB_REPOSITORY#*/}}"
-SVN_URL="https://plugins.svn.wordpress.org/${SLUG}/"
-SVN_DIR="${HOME}/svn-${SLUG}"
+readonly SVN_URL="https://plugins.svn.wordpress.org/${SLUG}/"
+readonly SVN_DIR="${HOME}/svn-${SLUG}"
 
-# If the version is not set, check if package.json exists and get the version from there otherwise exit.
+# If version is not set or invalid, try package.json
 if [[ -z "$VERSION" || ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     if [ -f ./package.json ]; then
         VERSION=$(node -p "require('./package.json').version")
+        log_info "Version from package.json: $VERSION"
     else
         VERSION=""
     fi
 fi
 
-#########################################
-# CHECK IF EVERYTHING IS SET CORRECTLY #
-#########################################
+# -----------------------------------------------------------------------------
+# Input Validation
+# -----------------------------------------------------------------------------
 for var in USERNAME PASSWORD SLUG VERSION; do
-  if [ -z "${!var}" ]; then
-    echo "x︎ $var is not set. Exiting..."
-    exit 1
-  fi
+    if [ -z "${!var:-}" ]; then
+        log_error "$var is not set"
+        exit 1
+    fi
 done
 
-# Log the slug.
-echo "ℹ︎ SLUG is $SLUG"
+readonly VERSION
+readonly SLUG
 
-# Log the version.
-echo "ℹ︎ VERSION is $VERSION"
+# -----------------------------------------------------------------------------
+# Display Configuration
+# -----------------------------------------------------------------------------
+log_info "=== Deployment Configuration ==="
+log_info "Slug: $SLUG"
+log_info "Version: $VERSION"
+log_info "SVN URL: $SVN_URL"
+log_info "Dry run: ${DRY_RUN:-false}"
+log_info "Generate ZIP: ${GENERATE_ZIP:-false}"
+echo ""
+
+# Output version for GitHub Actions
 echo "version=$VERSION" >> "${GITHUB_OUTPUT}"
 
-# Log the SVN URL.
-echo "ℹ︎ SVN_URL is $SVN_URL"
+# -----------------------------------------------------------------------------
+# Checkout SVN Repository
+# -----------------------------------------------------------------------------
+log_info "Checking out SVN repository..."
+if ! svn checkout --depth immediates "$SVN_URL" "$SVN_DIR" >> /dev/null; then
+    log_error "Failed to checkout SVN repository"
+    exit 1
+fi
 
-#########################################
-# PREPARE FILES FOR DEPLOYMENT #
-#########################################
+cd "$SVN_DIR" || exit 1
 
-# Checkout the SVN repo
-echo "➤ Checking out SVN repo..."
-svn checkout --depth immediates "$SVN_URL" "$SVN_DIR" >> /dev/null || exit 1
-cd "$SVN_DIR" || exit
 svn update --set-depth infinity assets >> /dev/null
 svn update --set-depth infinity trunk >> /dev/null
 svn update --set-depth immediates tags >> /dev/null
 
-# Copy files to the SVN repo
-echo "➤ Copying files..."
-# If .dist ignore file exists, use it to exclude files from the SVN repo, otherwise use the default.
+log_info "SVN checkout completed"
+
+# -----------------------------------------------------------------------------
+# Copy Plugin Files
+# -----------------------------------------------------------------------------
+log_info "Copying plugin files..."
+
 if [[ -r "$GITHUB_WORKSPACE/.distignore" ]]; then
-  echo "ℹ︎ Using .distignore"
-  rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "$GITHUB_WORKSPACE/" trunk/ --delete --delete-excluded
+    log_info "Using .distignore for exclusions"
+    rsync -rc --exclude-from="$GITHUB_WORKSPACE/.distignore" "$GITHUB_WORKSPACE/" trunk/ --delete --delete-excluded
 else
-  rsync -rc --exclude '.git' --exclude '.github' --exclude '.gitignore' --exclude '.distignore' --exclude 'node_modules' "$GITHUB_WORKSPACE/" trunk/ --delete --delete-excluded
+    log_info "Using default exclusions"
+    rsync -rc --exclude '.*' --exclude 'node_modules' "$GITHUB_WORKSPACE/" trunk/ --delete --delete-excluded
 fi
 
 # Remove empty directories from trunk
-find trunk -type d -empty -delete
+find trunk -type d -empty -delete 2>/dev/null || true
 
-echo "✓ Files copied!"
+log_info "Plugin files copied"
 
-
-# Copy assets
-# If .wordpress-org is a directory and contains files, copy them to the SVN repo.
+# -----------------------------------------------------------------------------
+# Copy Assets
+# -----------------------------------------------------------------------------
 if [[ -d "$GITHUB_WORKSPACE/.wordpress-org" ]]; then
-  echo "➤ Copying assets..."
-  rsync -rc "$GITHUB_WORKSPACE/.wordpress-org/"  assets/ --delete
-  # Fix screenshots getting force downloaded when clicking them
-  # https://developer.wordpress.org/plugins/wordpress-org/plugin-assets/
-  if test -d "$SVN_DIR/assets" && test -n "$(find "$SVN_DIR/assets" -maxdepth 1 -name "*.png" -print -quit)"; then
-      svn propset svn:mime-type "image/png" "$SVN_DIR/assets/"*.png || true
-  fi
-  if test -d "$SVN_DIR/assets" && test -n "$(find "$SVN_DIR/assets" -maxdepth 1 -name "*.jpg" -print -quit)"; then
-      svn propset svn:mime-type "image/jpeg" "$SVN_DIR/assets/"*.jpg || true
-  fi
-  if test -d "$SVN_DIR/assets" && test -n "$(find "$SVN_DIR/assets" -maxdepth 1 -name "*.gif" -print -quit)"; then
-      svn propset svn:mime-type "image/gif" "$SVN_DIR/assets/"*.gif || true
-  fi
-  if test -d "$SVN_DIR/assets" && test -n "$(find "$SVN_DIR/assets" -maxdepth 1 -name "*.svg" -print -quit)"; then
-      svn propset svn:mime-type "image/svg+xml" "$SVN_DIR/assets/"*.svg || true
-  fi
-  echo "✓ Assets copied!"
+    log_info "Copying assets from .wordpress-org..."
+    rsync -rc "$GITHUB_WORKSPACE/.wordpress-org/" assets/ --delete
+
+    # Set MIME types for images
+    if [ -d "$SVN_DIR/assets" ]; then
+        log_info "Setting MIME types for assets..."
+
+        if find "$SVN_DIR/assets" -maxdepth 1 -name "*.png" -print -quit | grep -q .; then
+            svn propset svn:mime-type "image/png" "$SVN_DIR/assets/"*.png 2>/dev/null || true
+        fi
+
+        if find "$SVN_DIR/assets" -maxdepth 1 -name "*.jpg" -print -quit | grep -q .; then
+            svn propset svn:mime-type "image/jpeg" "$SVN_DIR/assets/"*.jpg 2>/dev/null || true
+        fi
+
+        if find "$SVN_DIR/assets" -maxdepth 1 -name "*.gif" -print -quit | grep -q .; then
+            svn propset svn:mime-type "image/gif" "$SVN_DIR/assets/"*.gif 2>/dev/null || true
+        fi
+
+        if find "$SVN_DIR/assets" -maxdepth 1 -name "*.svg" -print -quit | grep -q .; then
+            svn propset svn:mime-type "image/svg+xml" "$SVN_DIR/assets/"*.svg 2>/dev/null || true
+        fi
+    fi
+
+    log_info "Assets copied"
 fi
 
-# Copy tag
-echo "➤ Copying tag..."
-if svn ls "https://plugins.svn.wordpress.org/$SLUG/tags/$VERSION" >>/dev/null 2>&1; then
-	echo "ℹ︎ Tag already exists. Pulling files ..."
-	svn update --set-depth infinity "$SVN_DIR/tags/$VERSION"
-	rsync -rc "$SVN_DIR/trunk/" "$SVN_DIR/tags/$VERSION/" --delete --delete-excluded
-	echo "✓ Tag files synced !"
+# -----------------------------------------------------------------------------
+# Create/Update Tag
+# -----------------------------------------------------------------------------
+log_info "Processing tag $VERSION..."
+
+if svn ls "https://plugins.svn.wordpress.org/$SLUG/tags/$VERSION" >> /dev/null 2>&1; then
+    log_info "Tag exists, updating..."
+    svn update --set-depth infinity "$SVN_DIR/tags/$VERSION"
+    rsync -rc "$SVN_DIR/trunk/" "$SVN_DIR/tags/$VERSION/" --delete --delete-excluded
 else
-	echo "ℹ︎ Tag does not exist. Creating tag ..."
-	svn copy "$SVN_DIR/trunk" "$SVN_DIR/tags/$VERSION" >>/dev/null
-	echo "✓ Tag created!"
+    log_info "Creating new tag..."
+    svn copy "$SVN_DIR/trunk" "$SVN_DIR/tags/$VERSION" >> /dev/null
 fi
-echo "✓ Tag copied!"
 
+# -----------------------------------------------------------------------------
+# Prepare SVN Changes
+# -----------------------------------------------------------------------------
+log_info "Preparing SVN changes..."
+svn add . --force > /dev/null 2>&1 || true
 
-# Update contents.
-echo "➤ Preparing files..."
-svn add . --force > /dev/null
+# Remove deleted files from SVN
+svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ > /dev/null 2>&1 || true
+svn update >> /dev/null 2>&1 || true
 
-# SVN delete all deleted files
-# Also suppress stdout here
-svn status | grep '^\!' | sed 's/! *//' | xargs -I% svn rm %@ > /dev/null
-svn update # Fix directory is out of date error
+log_info "Current SVN status:"
 svn status
-echo "✓ Files updated!"
 
-# Generate zip file
-if $GENERATE_ZIP; then
-    echo "➤ Generating zip file..."
+# -----------------------------------------------------------------------------
+# Generate ZIP File
+# -----------------------------------------------------------------------------
+if [ "${GENERATE_ZIP:-false}" = "true" ]; then
+    log_info "Generating ZIP file..."
     ln -s "${SVN_DIR}/trunk" "${SVN_DIR}/${SLUG}"
-    zip -r "${GITHUB_WORKSPACE}/${SLUG}.zip" "$SLUG"
+    zip -r "${GITHUB_WORKSPACE}/${SLUG}.zip" "$SLUG" >> /dev/null
     unlink "${SVN_DIR}/${SLUG}"
 
     echo "zip_path=${GITHUB_WORKSPACE}/${SLUG}.zip" >> "${GITHUB_OUTPUT}"
-    echo "✓ Zip file generated!"
+    log_info "ZIP file generated: ${SLUG}.zip"
 fi
 
-# If dry run, then exit.
-if $DRY_RUN; then
-  echo "ℹ︎ Dry run: Files not committed."
-  exit 0
+# -----------------------------------------------------------------------------
+# Dry Run Check
+# -----------------------------------------------------------------------------
+if [ "${DRY_RUN:-false}" = "true" ]; then
+    log_warning "Dry run mode - changes not committed"
+    exit 0
 fi
 
-# Check if there are changes to commit.
+# -----------------------------------------------------------------------------
+# Commit Changes
+# -----------------------------------------------------------------------------
 if [[ -n "$(svn status "$SVN_DIR")" ]]; then
-  echo "➤ Committing changes..."
-  svn commit -m "Update to version $VERSION" --no-auth-cache --non-interactive  --username "$USERNAME" --password "$PASSWORD"
-  echo "✓ Plugin deployed!"
+    log_info "Committing changes to SVN..."
+    if ! svn commit -m "Update to version $VERSION" --no-auth-cache --non-interactive --username "$USERNAME" --password "$PASSWORD"; then
+        log_error "Failed to commit changes"
+        exit 1
+    fi
+    log_info "Changes committed successfully"
 else
-  echo "ℹ︎ No changes to commit."
+    log_warning "No changes to commit"
 fi
+
+# -----------------------------------------------------------------------------
+# Success
+# -----------------------------------------------------------------------------
+log_info ""
+log_info "=== Deployment Complete ==="
+log_info "Plugin: $SLUG"
+log_info "Version: $VERSION"
+log_info "SVN URL: $SVN_URL"
